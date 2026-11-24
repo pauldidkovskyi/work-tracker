@@ -5,11 +5,13 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const state = {
   mode: 'admin', // 'admin' | 'accountant'
+  isAuthenticated: false,
   reportKey: null,
   shifts: [],
   openShift: null,
   selectedId: null,
-  timerInterval: null
+  timerInterval: null,
+  pendingConfirmAction: null
 };
 
 const $ = (id) => document.getElementById(id);
@@ -42,6 +44,10 @@ function calcMinutes(shift) {
   return Math.max(0, Math.round((new Date(shift.check_out) - new Date(shift.check_in)) / 60000));
 }
 
+function calcElapsedMinutes(checkInIso) {
+  return Math.max(0, Math.round((Date.now() - new Date(checkInIso)) / 60000));
+}
+
 function formatHM(totalMins) {
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
@@ -72,6 +78,48 @@ function showToast(msg) {
   el.classList.remove('hidden');
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.add('hidden'), 2600);
+}
+
+// --- Універсальне вікно NFC / підтвердження ---
+function showDialog({ icon, tone = 'green', title, subtitle, confirmText = null, closeText = 'Продовжити', onConfirm = null }) {
+  const tones = {
+    green: { color: 'var(--green)', bg: 'rgba(52, 199, 89, 0.16)' },
+    red: { color: 'var(--red)', bg: 'rgba(255, 59, 48, 0.16)' },
+    orange: { color: '#ff9500', bg: 'rgba(255, 149, 0, 0.16)' }
+  };
+  const palette = tones[tone] || tones.green;
+
+  const iconEl = $('nfc-icon');
+  iconEl.textContent = icon;
+  iconEl.style.color = palette.color;
+  iconEl.style.background = palette.bg;
+
+  $('nfc-title').textContent = title;
+  $('nfc-subtitle').textContent = subtitle;
+
+  const confirmBtn = $('nfc-confirm-btn');
+  const closeBtn = $('nfc-close-btn');
+
+  if (onConfirm) {
+    state.pendingConfirmAction = onConfirm;
+    confirmBtn.textContent = confirmText || 'Підтвердити';
+    confirmBtn.disabled = false;
+    confirmBtn.classList.remove('hidden');
+    closeBtn.textContent = closeText;
+    closeBtn.className = 'btn btn-secondary';
+  } else {
+    state.pendingConfirmAction = null;
+    confirmBtn.classList.add('hidden');
+    closeBtn.textContent = closeText;
+    closeBtn.className = 'btn btn-primary';
+  }
+
+  $('nfc-banner').classList.remove('hidden');
+}
+
+function closeDialog() {
+  state.pendingConfirmAction = null;
+  $('nfc-banner').classList.add('hidden');
 }
 
 // --- Періоди ---
@@ -112,7 +160,7 @@ async function init() {
 
   if (nfcToken) {
     window.history.replaceState({}, '', window.location.pathname);
-    await handleNfcPunch(nfcToken);
+    await handleNfcPunch(nfcToken, false);
   }
 
   if (reportKey) {
@@ -125,37 +173,68 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     state.mode = 'admin';
+    state.isAuthenticated = true;
     enterAppUI();
   } else {
     $('login-view').classList.remove('hidden');
   }
 }
 
-async function handleNfcPunch(token) {
-  const { data, error } = await sb.rpc('nfc_punch', { p_token: token });
-  $('nfc-banner').classList.remove('hidden');
+async function handleNfcPunch(token, confirmClose = false) {
+  const { data, error } = await sb.rpc('nfc_punch', {
+    p_token: token,
+    p_confirm_close: confirmClose
+  });
 
   if (error) {
-    $('nfc-icon').textContent = '!';
-    $('nfc-icon').style.color = 'var(--red)';
-    $('nfc-title').textContent = 'Помилка NFC';
-    $('nfc-subtitle').textContent = 'Невірний ключ мітки або помилка з’єднання.';
+    showDialog({
+      icon: '!',
+      tone: 'red',
+      title: 'Помилка NFC',
+      subtitle: 'Невірний ключ мітки або помилка з’єднання.'
+    });
+    return;
+  }
+
+  if (data.action === 'confirm_close') {
+    const mins = calcElapsedMinutes(data.shift.check_in);
+    showDialog({
+      icon: '?',
+      tone: 'orange',
+      title: 'Закрити зміну?',
+      subtitle: `Зміна відкрита о ${formatTime(data.shift.check_in)} • Пройшло ${formatHM(mins)}`,
+      confirmText: 'Так, закрити зміну',
+      closeText: 'Ні, продовжити роботу',
+      onConfirm: async () => {
+        await handleNfcPunch(token, true);
+        if (state.isAuthenticated && state.mode === 'admin') {
+          await checkOpenShift();
+          await loadShifts();
+        }
+      }
+    });
     return;
   }
 
   if (data.action === 'check_in') {
-    $('nfc-icon').textContent = '✓';
-    $('nfc-title').textContent = 'Зміну відкрито';
-    $('nfc-subtitle').textContent = `Прихід зафіксовано о ${formatTime(data.shift.check_in)}`;
+    showDialog({
+      icon: '✓',
+      tone: 'green',
+      title: 'Зміну відкрито',
+      subtitle: `Прихід зафіксовано о ${formatTime(data.shift.check_in)}`
+    });
   } else {
     const mins = calcMinutes(data.shift);
-    $('nfc-icon').textContent = '🏁';
-    $('nfc-title').textContent = 'Зміну закрито';
-    $('nfc-subtitle').textContent = `Вихід о ${formatTime(data.shift.check_out)} • Відпрацьовано ${formatHM(mins)}`;
+    showDialog({
+      icon: '🏁',
+      tone: 'green',
+      title: 'Зміну закрито',
+      subtitle: `Вихід о ${formatTime(data.shift.check_out)} • Відпрацьовано ${formatHM(mins)}`
+    });
   }
 }
 
-function enterAppUI() {
+async function enterAppUI() {
   $('login-view').classList.add('hidden');
   $('app-view').classList.remove('hidden');
 
@@ -167,10 +246,10 @@ function enterAppUI() {
   $('logout-btn').classList.toggle('hidden', !isAdmin);
   $('add-shift-btn').classList.toggle('hidden', !isAdmin);
 
+  if (isAdmin) await checkOpenShift();
+
   const today = new Date().getDate();
   applyPreset(today <= 15 ? 'first-half' : 'second-half');
-
-  if (isAdmin) checkOpenShift();
 }
 
 // --- Завантаження змін ---
@@ -208,7 +287,6 @@ async function loadShifts() {
 
   state.shifts = res.data || [];
 
-  // В адмінці автоматично відкриваємо останню зміну (без порожньої заглушки)
   if (state.mode === 'admin' && state.shifts.length) {
     const stillExists = state.shifts.find((s) => s.id === state.selectedId);
     state.selectedId = stillExists ? stillExists.id : state.shifts[0].id;
@@ -340,30 +418,69 @@ function renderEditor(shift) {
   $('edit-out').value = formatInputTime(shift.check_out);
   $('edit-notes').value = shift.notes || '';
   $('save-status').textContent = '';
+
+  // Показуємо «Продовжити зміну», якщо ця зміна закрита і немає іншої активної
+  const canResume = Boolean(shift.check_out) && !state.openShift;
+  $('resume-shift-btn').classList.toggle('hidden', !canResume);
 }
 
 // --- Дії адміна ---
+async function closeOpenShift() {
+  if (!state.openShift) return;
+  const { error } = await sb
+    .from('shifts')
+    .update({ check_out: new Date().toISOString() })
+    .eq('id', state.openShift.id);
+
+  closeDialog();
+  if (error) return showToast('Помилка: ' + error.message);
+
+  showToast('Зміну закрито');
+  await checkOpenShift();
+  await loadShifts();
+}
+
 async function togglePunch() {
   if (state.openShift) {
-    const { error } = await sb
-      .from('shifts')
-      .update({ check_out: new Date().toISOString() })
-      .eq('id', state.openShift.id);
-
-    if (error) return showToast('Помилка: ' + error.message);
-    showToast('Зміну закрито');
-  } else {
-    const { data, error } = await sb
-      .from('shifts')
-      .insert({ work_date: toISODate(new Date()), check_in: new Date().toISOString() })
-      .select()
-      .single();
-
-    if (error) return showToast('Помилка: ' + error.message);
-    state.selectedId = data.id;
-    showToast('Зміну відкрито');
+    const mins = calcElapsedMinutes(state.openShift.check_in);
+    showDialog({
+      icon: '?',
+      tone: 'orange',
+      title: 'Закрити зміну?',
+      subtitle: `Зміна відкрита о ${formatTime(state.openShift.check_in)} • Пройшло ${formatHM(mins)}`,
+      confirmText: 'Так, закрити зміну',
+      closeText: 'Ні, продовжити роботу',
+      onConfirm: closeOpenShift
+    });
+    return;
   }
 
+  const { data, error } = await sb
+    .from('shifts')
+    .insert({ work_date: toISODate(new Date()), check_in: new Date().toISOString() })
+    .select()
+    .single();
+
+  if (error) return showToast('Помилка: ' + error.message);
+  state.selectedId = data.id;
+  showToast('Зміну відкрито');
+
+  await checkOpenShift();
+  await loadShifts();
+}
+
+async function resumeCurrentShift() {
+  if (!state.selectedId) return;
+  if (state.openShift) return showToast('Вже є інша відкрита зміна');
+
+  const { error } = await sb
+    .from('shifts')
+    .update({ check_out: null })
+    .eq('id', state.selectedId);
+
+  if (error) return showToast('Помилка: ' + error.message);
+
+  showToast('Зміну продовжено — таймер знову працює');
   await checkOpenShift();
   await loadShifts();
 }
@@ -516,6 +633,7 @@ $('login-form').addEventListener('submit', async (e) => {
     return;
   }
   state.mode = 'admin';
+  state.isAuthenticated = true;
   enterAppUI();
 });
 
@@ -525,6 +643,7 @@ $('logout-btn').addEventListener('click', async () => {
 });
 
 $('punch-btn').addEventListener('click', togglePunch);
+$('resume-shift-btn').addEventListener('click', resumeCurrentShift);
 $('add-shift-btn').addEventListener('click', addManualShift);
 $('save-shift-btn').addEventListener('click', saveCurrentShift);
 $('delete-shift-btn').addEventListener('click', deleteCurrentShift);
@@ -532,7 +651,14 @@ $('copy-tsv-btn').addEventListener('click', copyForSheets);
 $('export-csv-btn').addEventListener('click', exportCsv);
 $('links-btn').addEventListener('click', openLinksModal);
 $('close-modal-btn').addEventListener('click', () => $('links-modal').classList.add('hidden'));
-$('nfc-close-btn').addEventListener('click', () => $('nfc-banner').classList.add('hidden'));
+$('nfc-close-btn').addEventListener('click', closeDialog);
+
+$('nfc-confirm-btn').addEventListener('click', async () => {
+  if (!state.pendingConfirmAction) return;
+  const action = state.pendingConfirmAction;
+  $('nfc-confirm-btn').disabled = true;
+  await action();
+});
 
 document.querySelectorAll('.chip').forEach((btn) => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));

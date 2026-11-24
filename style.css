@@ -652,3 +652,31 @@ tbody tr:last-child td {
         grid-template-columns: 1fr;
     }
 }
+
+.btn-green-soft {
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--green);
+}
+
+.btn-green-soft:hover {
+    background: rgba(52, 199, 89, 0.25);
+}
+
+.editor-actions-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.nfc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.nfc-actions .btn {
+    width: 100%;
+    padding: 11px 16px;
+}

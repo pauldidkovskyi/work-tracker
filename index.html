@@ -14,13 +14,16 @@
 <body>
     <div id="toast" class="toast hidden"></div>
 
-    <!-- Банер NFC -->
+    <!-- Банер NFC та підтвердження закриття -->
     <div id="nfc-banner" class="nfc-banner hidden">
         <div class="nfc-card">
             <div id="nfc-icon" class="nfc-icon">✓</div>
             <h2 id="nfc-title">Зафіксовано</h2>
             <p id="nfc-subtitle"></p>
-            <button id="nfc-close-btn" class="btn btn-primary">Продовжити</button>
+            <div class="nfc-actions">
+                <button id="nfc-confirm-btn" class="btn btn-red hidden">Так, закрити зміну</button>
+                <button id="nfc-close-btn" class="btn btn-primary">Продовжити</button>
+            </div>
         </div>
     </div>
 
@@ -62,7 +65,7 @@
                 </div>
                 <button id="punch-btn" class="btn btn-green hidden">Прийшов на роботу</button>
                 <button id="links-btn" class="btn btn-ghost hidden"
-                    title="Посилання для NFC та звіту">Посилання</button>
+                    title="Посилання для NFC та звітування">Посилання</button>
                 <button id="logout-btn" class="btn btn-ghost hidden">Вийти</button>
             </div>
         </header>
@@ -129,7 +132,7 @@
                     </div>
                 </div>
 
-                <!-- Панель нотаток (тільки для адміна, коли є зміни) -->
+                <!-- Панель нотаток -->
                 <aside id="editor-panel" class="editor-panel card hidden">
                     <div class="editor-content">
                         <div class="editor-head">
@@ -163,7 +166,11 @@
 
                         <div class="editor-actions">
                             <span id="save-status" class="muted"></span>
-                            <button id="save-shift-btn" class="btn btn-primary">Зберегти</button>
+                            <div class="editor-actions-right">
+                                <button id="resume-shift-btn" class="btn btn-green-soft hidden">Продовжити
+                                    зміну</button>
+                                <button id="save-shift-btn" class="btn btn-primary">Зберегти</button>
+                            </div>
                         </div>
                     </div>
                 </aside>
@@ -189,7 +196,7 @@
                 </div>
 
                 <div class="link-box">
-                    <label>Доступ для звітування (тільки перегляд)</label>
+                    <label>Доступ до звіту (тільки перегляд)</label>
                     <div class="copy-row">
                         <input type="text" id="report-url-input" readonly />
                         <button class="btn btn-secondary" data-copy-target="report-url-input">Копіювати</button>
