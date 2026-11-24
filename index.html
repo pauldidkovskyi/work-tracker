@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>WorkLog — Облік робочого часу</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Банер NFC -->
+    <div id="nfc-banner" class="nfc-banner hidden">
+        <div class="nfc-card">
+            <div id="nfc-icon" class="nfc-icon">✓</div>
+            <h2 id="nfc-title">Зафіксовано</h2>
+            <p id="nfc-subtitle"></p>
+            <button id="nfc-close-btn" class="btn btn-primary">Продовжити</button>
+        </div>
+    </div>
+
+    <!-- Екран входу -->
+    <section id="login-view" class="login-view hidden">
+        <div class="login-card">
+            <div class="app-logo">⏱</div>
+            <h1>WorkLog</h1>
+            <p class="subtitle">Увійди, щоб керувати змінами та нотатками</p>
+            <form id="login-form">
+                <label class="field">
+                    <span>Email</span>
+                    <input type="email" id="login-email" required placeholder="you@example.com" autocomplete="email" />
+                </label>
+                <label class="field">
+                    <span>Пароль</span>
+                    <input type="password" id="login-password" required placeholder="••••••••"
+                        autocomplete="current-password" />
+                </label>
+                <p id="login-error" class="error-text hidden"></p>
+                <button type="submit" class="btn btn-primary btn-full">Увійти</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Основний інтерфейс -->
+    <div id="app-view" class="app-shell hidden">
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="brand-dot"></span>
+                <span class="brand-name">WorkLog</span>
+                <span id="role-badge" class="badge hidden">Звітування • Тільки перегляд</span>
+            </div>
+
+            <div class="topbar-right">
+                <div id="live-status" class="live-pill hidden">
+                    <span class="pulse"></span>
+                    <span id="live-timer">00:00:00</span>
+                </div>
+                <button id="punch-btn" class="btn btn-green hidden">Прийшов на роботу</button>
+                <button id="links-btn" class="btn btn-ghost hidden"
+                    title="Посилання для NFC та звіту">Посилання</button>
+                <button id="logout-btn" class="btn btn-ghost hidden">Вийти</button>
+            </div>
+        </header>
+
+        <main class="container">
+            <section class="toolbar card">
+                <div class="presets">
+                    <button class="chip" data-preset="first-half">1 — 15</button>
+                    <button class="chip" data-preset="second-half">16 — кінець</button>
+                    <button class="chip" data-preset="full-month">Весь місяць</button>
+                    <button class="chip" data-preset="prev-month">Минулий місяць</button>
+                </div>
+
+                <div class="date-range">
+                    <input type="date" id="date-start" aria-label="Початок періоду" />
+                    <span class="sep">—</span>
+                    <input type="date" id="date-end" aria-label="Кінець періоду" />
+                </div>
+
+                <div class="export-actions">
+                    <button id="copy-tsv-btn" class="btn btn-secondary">Скопіювати для таблиці</button>
+                    <button id="export-csv-btn" class="btn btn-ghost">CSV</button>
+                    <button id="add-shift-btn" class="btn btn-primary hidden">+ Зміна</button>
+                </div>
+            </section>
+
+            <section class="stats-grid">
+                <div class="stat-card card">
+                    <span class="stat-label">Всього годин</span>
+                    <strong id="stat-hours" class="stat-value">0,00 год</strong>
+                    <span id="stat-hm" class="stat-sub">0г 00хв</span>
+                </div>
+                <div class="stat-card card">
+                    <span class="stat-label">Робочих днів</span>
+                    <strong id="stat-days" class="stat-value">0</strong>
+                    <span id="stat-shifts-count" class="stat-sub">0 записів</span>
+                </div>
+                <div class="stat-card card">
+                    <span class="stat-label">Середня зміна</span>
+                    <strong id="stat-avg" class="stat-value">0г 00хв</strong>
+                    <span id="stat-period-label" class="stat-sub">Обраний період</span>
+                </div>
+            </section>
+
+            <section id="workspace" class="workspace single-col">
+                <div class="table-panel card">
+                    <div class="panel-head">
+                        <h2>Журнал змін</h2>
+                        <span id="table-hint" class="muted">Клікни рядок для деталей</span>
+                    </div>
+                    <div id="table-wrap" class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Прихід</th>
+                                    <th>Вихід</th>
+                                    <th>Години</th>
+                                    <th class="col-notes">Нотатка</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shifts-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Панель нотаток (тільки для адміна, коли є зміни) -->
+                <aside id="editor-panel" class="editor-panel card hidden">
+                    <div class="editor-content">
+                        <div class="editor-head">
+                            <div>
+                                <h2 id="editor-date-title">Дата</h2>
+                                <span id="editor-duration-badge" class="muted"></span>
+                            </div>
+                            <button id="delete-shift-btn" class="btn btn-danger-ghost">Видалити</button>
+                        </div>
+
+                        <div class="time-fields">
+                            <label class="field">
+                                <span>Дата</span>
+                                <input type="date" id="edit-date" />
+                            </label>
+                            <label class="field">
+                                <span>Прихід</span>
+                                <input type="time" id="edit-in" />
+                            </label>
+                            <label class="field">
+                                <span>Вихід</span>
+                                <input type="time" id="edit-out" />
+                            </label>
+                        </div>
+
+                        <label class="field notes-field">
+                            <span>Що зроблено за зміну</span>
+                            <textarea id="edit-notes" rows="10"
+                                placeholder="- Налаштування...&#10;- Тестування...&#10;- Збірка..."></textarea>
+                        </label>
+
+                        <div class="editor-actions">
+                            <span id="save-status" class="muted"></span>
+                            <button id="save-shift-btn" class="btn btn-primary">Зберегти</button>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+        </main>
+    </div>
+
+    <!-- Модальне вікно посилань -->
+    <div id="links-modal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>Швидкі посилання</h3>
+                <button id="close-modal-btn" class="btn btn-ghost">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="link-box">
+                    <label>NFC-мітка (відкриває / закриває зміну)</label>
+                    <div class="copy-row">
+                        <input type="text" id="nfc-url-input" readonly />
+                        <button class="btn btn-secondary" data-copy-target="nfc-url-input">Копіювати</button>
+                    </div>
+                    <small class="muted">Запиши це посилання на NFC-мітку або в iOS Команди (Shortcuts).</small>
+                </div>
+
+                <div class="link-box">
+                    <label>Доступ для звітування (тільки перегляд)</label>
+                    <div class="copy-row">
+                        <input type="text" id="report-url-input" readonly />
+                        <button class="btn btn-secondary" data-copy-target="report-url-input">Копіювати</button>
+                    </div>
+                    <small class="muted">Тільки таблиця годин і експорт, без нотаток та редагування.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
