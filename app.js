@@ -295,7 +295,19 @@ async function loadShifts() {
   }
 
   renderTable();
-  renderStats();
+  function renderStats() {
+    const closed = state.shifts.filter((s) => s.check_out);
+    const totalMins = closed.reduce((acc, s) => acc + calcMinutes(s), 0);
+    const uniqueDays = new Set(state.shifts.map((s) => s.work_date)).size;
+    const fullShifts = (totalMins / 480).toFixed(2).replace('.', ',');
+
+    $('stat-hours').textContent = `${formatDecimalUA(totalMins)} год`;
+    $('stat-hm').textContent = formatHM(totalMins);
+    $('stat-days').textContent = uniqueDays;
+    $('stat-shifts-count').textContent = pluralRecords(state.shifts.length);
+    $('stat-avg').textContent = fullShifts;
+    $('stat-period-label').textContent = `${$('date-start').value} — ${$('date-end').value}`;
+  }
   syncEditorVisibility();
 }
 
