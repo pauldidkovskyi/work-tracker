@@ -4,7 +4,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ypyFRd7r4Lh0aDOe6TdWtA_SgCZQ7lT
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 const state = {
-  mode: 'admin', // 'admin' | 'accountant'
+  mode: 'admin',
   isAuthenticated: false,
   reportKey: null,
   shifts: [],
@@ -68,7 +68,11 @@ function pluralRecords(n) {
 
 function escapeHtml(str = '') {
   return str.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
   }[c]));
 }
 
@@ -80,7 +84,6 @@ function showToast(msg) {
   el._t = setTimeout(() => el.classList.add('hidden'), 2600);
 }
 
-// --- Універсальне вікно NFC / підтвердження ---
 function showDialog({ icon, tone = 'green', title, subtitle, confirmText = null, closeText = 'Продовжити', onConfirm = null }) {
   const tones = {
     green: { color: 'var(--green)', bg: 'rgba(52, 199, 89, 0.16)' },
@@ -122,12 +125,12 @@ function closeDialog() {
   $('nfc-banner').classList.add('hidden');
 }
 
-// --- Періоди ---
 function applyPreset(preset) {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
-  let start, end;
+  let start;
+  let end;
 
   if (preset === 'first-half') {
     start = new Date(y, m, 1);
@@ -152,7 +155,6 @@ function applyPreset(preset) {
   loadShifts();
 }
 
-// --- Ініціалізація ---
 async function init() {
   const params = new URLSearchParams(window.location.search);
   const nfcToken = params.get('nfc');
@@ -164,7 +166,7 @@ async function init() {
   }
 
   if (reportKey) {
-    state.mode = 'accountant';
+    state.mode = 'report';
     state.reportKey = reportKey;
     enterAppUI();
     return;
@@ -239,7 +241,7 @@ async function enterAppUI() {
   $('app-view').classList.remove('hidden');
 
   const isAdmin = state.mode === 'admin';
-  $('app-view').classList.toggle('accountant-mode', !isAdmin);
+  $('app-view').classList.toggle('report-mode', !isAdmin);
   $('role-badge').classList.toggle('hidden', isAdmin);
   $('punch-btn').classList.toggle('hidden', !isAdmin);
   $('links-btn').classList.toggle('hidden', !isAdmin);
@@ -252,7 +254,6 @@ async function enterAppUI() {
   applyPreset(today <= 15 ? 'first-half' : 'second-half');
 }
 
-// --- Завантаження змін ---
 async function loadShifts() {
   const start = $('date-start').value;
   const end = $('date-end').value;
@@ -261,7 +262,7 @@ async function loadShifts() {
   $('table-wrap').classList.add('loading');
 
   let res;
-  if (state.mode === 'accountant') {
+  if (state.mode === 'report') {
     res = await sb.rpc('get_accountant_shifts', {
       p_key: state.reportKey,
       p_start: start,
@@ -295,19 +296,7 @@ async function loadShifts() {
   }
 
   renderTable();
-  function renderStats() {
-    const closed = state.shifts.filter((s) => s.check_out);
-    const totalMins = closed.reduce((acc, s) => acc + calcMinutes(s), 0);
-    const uniqueDays = new Set(state.shifts.map((s) => s.work_date)).size;
-    const fullShifts = (totalMins / 480).toFixed(2).replace('.', ',');
-
-    $('stat-hours').textContent = `${formatDecimalUA(totalMins)} год`;
-    $('stat-hm').textContent = formatHM(totalMins);
-    $('stat-days').textContent = uniqueDays;
-    $('stat-shifts-count').textContent = pluralRecords(state.shifts.length);
-    $('stat-avg').textContent = fullShifts;
-    $('stat-period-label').textContent = `${$('date-start').value} — ${$('date-end').value}`;
-  }
+  renderStats();
   syncEditorVisibility();
 }
 
@@ -364,7 +353,6 @@ function updateLiveTimerUI() {
   state.timerInterval = setInterval(tick, 1000);
 }
 
-// --- Рендер ---
 function renderTable() {
   const tbody = $('shifts-tbody');
   const isAdmin = state.mode === 'admin';
@@ -409,13 +397,13 @@ function renderStats() {
   const closed = state.shifts.filter((s) => s.check_out);
   const totalMins = closed.reduce((acc, s) => acc + calcMinutes(s), 0);
   const uniqueDays = new Set(state.shifts.map((s) => s.work_date)).size;
-  const avgMins = closed.length ? Math.round(totalMins / closed.length) : 0;
+  const fullShifts = (totalMins / 480).toFixed(2).replace('.', ',');
 
   $('stat-hours').textContent = `${formatDecimalUA(totalMins)} год`;
   $('stat-hm').textContent = formatHM(totalMins);
   $('stat-days').textContent = uniqueDays;
   $('stat-shifts-count').textContent = pluralRecords(state.shifts.length);
-  $('stat-avg').textContent = formatHM(avgMins);
+  $('stat-full-shifts').textContent = fullShifts;
   $('stat-period-label').textContent = `${$('date-start').value} — ${$('date-end').value}`;
 }
 
@@ -431,12 +419,10 @@ function renderEditor(shift) {
   $('edit-notes').value = shift.notes || '';
   $('save-status').textContent = '';
 
-  // Показуємо «Продовжити зміну», якщо ця зміна закрита і немає іншої активної
   const canResume = Boolean(shift.check_out) && !state.openShift;
   $('resume-shift-btn').classList.toggle('hidden', !canResume);
 }
 
-// --- Дії адміна ---
 async function closeOpenShift() {
   if (!state.openShift) return;
   const { error } = await sb
@@ -566,7 +552,6 @@ async function deleteCurrentShift() {
   showToast('Зміну видалено');
 }
 
-// --- Експорт ---
 function buildExportRows() {
   const isAdmin = state.mode === 'admin';
   const sorted = [...state.shifts].sort((a, b) => a.work_date.localeCompare(b.work_date));
@@ -617,7 +602,6 @@ function exportCsv() {
   a.click();
 }
 
-// --- Модалка посилань ---
 async function openLinksModal() {
   const { data, error } = await sb.from('app_settings').select('key, value');
   if (error) return showToast('Не вдалося завантажити ключі');
@@ -630,7 +614,6 @@ async function openLinksModal() {
   $('links-modal').classList.remove('hidden');
 }
 
-// --- Події ---
 $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('login-error').classList.add('hidden');

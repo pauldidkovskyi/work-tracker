@@ -14,7 +14,6 @@
 <body>
     <div id="toast" class="toast hidden"></div>
 
-    <!-- Банер NFC та підтвердження закриття -->
     <div id="nfc-banner" class="nfc-banner hidden">
         <div class="nfc-card">
             <div id="nfc-icon" class="nfc-icon">✓</div>
@@ -27,7 +26,6 @@
         </div>
     </div>
 
-    <!-- Екран входу -->
     <section id="login-view" class="login-view hidden">
         <div class="login-card">
             <div class="app-logo">⏱</div>
@@ -49,13 +47,12 @@
         </div>
     </section>
 
-    <!-- Основний інтерфейс -->
     <div id="app-view" class="app-shell hidden">
         <header class="topbar">
             <div class="topbar-left">
                 <span class="brand-dot"></span>
                 <span class="brand-name">WorkLog</span>
-                <span id="role-badge" class="badge hidden">Звітування • Тільки перегляд</span>
+                <span id="role-badge" class="badge hidden">Звіт • Тільки перегляд</span>
             </div>
 
             <div class="topbar-right">
@@ -104,11 +101,10 @@
                     <span id="stat-shifts-count" class="stat-sub">0 записів</span>
                 </div>
                 <div class="stat-card card">
-                    <span class="stat-label">Повних змін </span>
-                    <strong id="stat-avg" class="stat-value">0,00</strong>
+                    <span class="stat-label">Повних змін (по 8 год)</span>
+                    <strong id="stat-full-shifts" class="stat-value">0,00</strong>
                     <span id="stat-period-label" class="stat-sub">Обраний період</span>
                 </div>
-
             </section>
 
             <section id="workspace" class="workspace single-col">
@@ -133,7 +129,6 @@
                     </div>
                 </div>
 
-                <!-- Панель нотаток -->
                 <aside id="editor-panel" class="editor-panel card hidden">
                     <div class="editor-content">
                         <div class="editor-head">
@@ -179,7 +174,6 @@
         </main>
     </div>
 
-    <!-- Модальне вікно посилань -->
     <div id="links-modal" class="modal hidden">
         <div class="modal-card">
             <div class="modal-head">
@@ -197,7 +191,7 @@
                 </div>
 
                 <div class="link-box">
-                    <label>Доступ до звіту (тільки перегляд)</label>
+                    <label>Посилання на звіт (тільки перегляд)</label>
                     <div class="copy-row">
                         <input type="text" id="report-url-input" readonly />
                         <button class="btn btn-secondary" data-copy-target="report-url-input">Копіювати</button>

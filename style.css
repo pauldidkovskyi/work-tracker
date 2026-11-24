@@ -55,7 +55,6 @@ body {
     font-size: 13px;
 }
 
-/* Кнопки та інпути */
 .btn {
     border: none;
     border-radius: 10px;
@@ -84,6 +83,15 @@ body {
 .btn-green {
     background: var(--green);
     color: #fff;
+}
+
+.btn-green-soft {
+    background: rgba(52, 199, 89, 0.15);
+    color: var(--green);
+}
+
+.btn-green-soft:hover {
+    background: rgba(52, 199, 89, 0.25);
 }
 
 .btn-red {
@@ -151,7 +159,6 @@ textarea:focus {
     box-shadow: var(--shadow);
 }
 
-/* Вхід */
 .login-view {
     min-height: 100vh;
     display: grid;
@@ -214,7 +221,6 @@ textarea:focus {
     margin: 0;
 }
 
-/* Верхня панель */
 .topbar {
     position: sticky;
     top: 0;
@@ -295,7 +301,6 @@ textarea:focus {
     }
 }
 
-/* Контейнер */
 .container {
     max-width: 1220px;
     margin: 0 auto;
@@ -305,7 +310,6 @@ textarea:focus {
     gap: 16px;
 }
 
-/* Фільтри */
 .toolbar {
     padding: 14px 16px;
     display: flex;
@@ -350,7 +354,6 @@ textarea:focus {
     flex-wrap: wrap;
 }
 
-/* Статистика */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -383,7 +386,6 @@ textarea:focus {
     color: var(--muted);
 }
 
-/* Робоча зона */
 .workspace {
     display: grid;
     grid-template-columns: 1.35fr 1fr;
@@ -482,7 +484,6 @@ tbody tr:last-child td {
     padding: 32px 16px !important;
 }
 
-/* Редактор */
 .editor-panel {
     padding: 18px;
 }
@@ -522,20 +523,27 @@ tbody tr:last-child td {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-/* Чистий режим бухгалтера */
-.accountant-mode #editor-panel,
-.accountant-mode .col-notes,
-.accountant-mode #table-hint {
+.editor-actions-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.report-mode #editor-panel,
+.report-mode .col-notes,
+.report-mode #table-hint {
     display: none !important;
 }
 
-.accountant-mode tbody tr {
+.report-mode tbody tr {
     cursor: default;
 }
 
-/* Тост та модалки */
 .toast {
     position: fixed;
     bottom: 24px;
@@ -590,6 +598,18 @@ tbody tr:last-child td {
     place-items: center;
     font-size: 28px;
     font-weight: 700;
+}
+
+.nfc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.nfc-actions .btn {
+    width: 100%;
+    padding: 11px 16px;
 }
 
 .modal-head {
@@ -651,32 +671,4 @@ tbody tr:last-child td {
     .time-fields {
         grid-template-columns: 1fr;
     }
-}
-
-.btn-green-soft {
-    background: rgba(52, 199, 89, 0.15);
-    color: var(--green);
-}
-
-.btn-green-soft:hover {
-    background: rgba(52, 199, 89, 0.25);
-}
-
-.editor-actions-right {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.nfc-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 18px;
-}
-
-.nfc-actions .btn {
-    width: 100%;
-    padding: 11px 16px;
 }
